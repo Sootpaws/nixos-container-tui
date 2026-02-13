@@ -81,8 +81,11 @@ async fn monitor_container(container: String, channel: Sender, connection: Conne
             let state = ContainerState::from_systemd(
                 &state.get().await.context("Failed to get updated state")?,
             )?;
-            dbg!(state);
-            log!(c, s, "Changed")
+            s.send(NamedUpdate {
+                container_name: c.clone(),
+                inner: Update::State(state),
+            })
+            .unwrap();
         }
         Ok(())
     };

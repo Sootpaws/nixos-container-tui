@@ -16,6 +16,8 @@ pub enum Update {
     Log(String),
     /// Errors from the monitor (not the container service)
     Error(Error),
+    /// State of the container status
+    State(ContainerState),
 }
 
 /// The state of a container service
