@@ -4,4 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.101"
 cursive = "0.21.1"
+tokio-stream = "0.1.18"
+zbus = "5.13.2"
+
+[dependencies.tokio]
+version = "1.49.0"
+features = [ "rt", "rt-multi-thread", "macros", "sync" ]
