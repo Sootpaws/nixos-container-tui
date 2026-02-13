@@ -1,11 +1,11 @@
+use anyhow::{Context, Result, anyhow};
+use messages::{ContainerState, NamedUpdate, Update};
+use proxies::{ManagerProxy, UnitProxy};
+use std::fs;
 use tokio::sync::mpsc;
 use tokio::task;
 use tokio_stream::StreamExt;
 use zbus::Connection;
-use anyhow::{Context, Result, anyhow};
-use std::fs;
-use messages::{NamedUpdate, Update, ContainerState};
-use proxies::{ManagerProxy, UnitProxy};
 
 /// Data structures for communicating with the backend
 pub mod messages;
@@ -16,13 +16,13 @@ pub mod messages;
 mod proxies;
 
 /// Set up backend communication with systemd over dbus
-pub async fn start_backend() -> Result<()> {
+pub async fn start_backend() -> Result<Receiver> {
     // Connect to systemd over dbus
     let connection = Connection::system().await.unwrap();
     // Get list of containers to monitor
     let containers = get_containers()?;
     // Create channel for recieving updates from monitors
-    let (send, mut recv) = mpsc::unbounded_channel();
+    let (send, recv) = mpsc::unbounded_channel();
     // Spawn tasks for monitoring each container
     for container in &containers {
         task::spawn(monitor_container(
@@ -31,12 +31,15 @@ pub async fn start_backend() -> Result<()> {
             connection.clone(),
         ));
     }
-    println!("Monitors spawned");
-    while let Some(msg) = recv.recv().await {
-        println!("Update: {:?}", msg);
-    }
-    Ok(())
+    // Return backend message reciever
+    Ok(recv)
 }
+
+/// Type of the reciever for messages from the backend
+pub type Receiver = mpsc::UnboundedReceiver<NamedUpdate>;
+
+/// Type of senders for transmitting messages out of the backend
+type Sender = mpsc::UnboundedSender<NamedUpdate>;
 
 /// Helper for reporting log messages from container monitors
 macro_rules! log {
@@ -51,11 +54,7 @@ macro_rules! log {
 }
 
 /// Monitor the status of a container
-async fn monitor_container(
-    container: String,
-    channel: mpsc::UnboundedSender<NamedUpdate>,
-    connection: Connection,
-) {
+async fn monitor_container(container: String, channel: Sender, connection: Connection) {
     // These will get moved into the inner closure
     let c = container.clone();
     let s = channel.clone();

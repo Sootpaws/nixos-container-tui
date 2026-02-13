@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result, Error};
+use anyhow::{Error, Result, anyhow};
 
 /// An update from the backend associated with a container name
 #[derive(Debug)]

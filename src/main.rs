@@ -3,7 +3,11 @@ mod backend;
 
 #[tokio::main]
 async fn main() {
-    backend::start_backend().await.unwrap();
+    let mut recv = backend::start_backend().await.unwrap();
+    println!("Monitors spawned");
+    while let Some(msg) = recv.recv().await {
+        println!("Update: {:?}", msg);
+    }
 }
 
 // use cursive::views::{ListView, ScrollView, Button};
