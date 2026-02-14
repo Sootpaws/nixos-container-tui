@@ -1,6 +1,6 @@
 use backend::messages::{ContainerState, NamedUpdate, Update};
 use cursive::Cursive;
-use cursive::views::{Button, LayerPosition};
+use cursive::views::LayerPosition;
 use tokio::task;
 use tui::container_list::ContainerList;
 
@@ -78,10 +78,7 @@ fn handle_message(root: &mut Cursive, message: NamedUpdate) {
                 ContainerState::Maintenance => ("MAINTENANCE", true),
             };
             // Update button
-            let state_button = controls
-                .get_child_mut(0)
-                .and_then(|v| v.downcast_mut::<Button>())
-                .unwrap();
+            let state_button = controls.get_state_button();
             state_button.set_label(text);
             state_button.set_enabled(enabled);
         }
