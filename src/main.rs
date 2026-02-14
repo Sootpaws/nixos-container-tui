@@ -1,6 +1,6 @@
 use backend::messages::{ContainerState, NamedUpdate, Update};
 use cursive::Cursive;
-use cursive::view::View;
+use cursive::view::{View, ViewWrapper};
 use cursive::views::{Button, LayerPosition, LinearLayout, ListChild, ListView, ScrollView};
 use tokio::task;
 
@@ -46,31 +46,49 @@ async fn main() {
 
 /// Create the TUI
 fn create_tui(root: &mut Cursive, containers: &Vec<String>) {
-    // Create the list of containers and their controls/info
-    let container_list = {
+    // Set up the main TUI
+    root.add_global_callback('q', |s| s.quit());
+    root.add_layer(ContainerList::new(containers));
+}
+
+/// Wrapper for the main container list
+struct ContainerList {
+    inner: ScrollView<ListView>,
+}
+
+impl ContainerList {
+    /// Create a container list TUI from a list of container names
+    pub fn new(containers: &Vec<String>) -> Self {
         let mut list = ListView::new();
         for container in containers {
             let controls = LinearLayout::horizontal().child(Button::new("[Unknown]", |_| {}));
             list.add_child(container, controls);
         }
-        list
-    };
+        Self {
+            inner: ScrollView::new(list),
+        }
+    }
 
-    // Set up the main TUI
-    root.add_global_callback('q', |s| s.quit());
-    root.add_layer(ScrollView::new(container_list));
+    /// Get the container view for a given name
+    pub fn get_container(&mut self, name: &str) -> Option<&mut LinearLayout> {
+        get_list_child(self.inner.get_inner_mut(), name)
+            .and_then(|v| v.downcast_mut::<LinearLayout>())
+    }
+}
+
+impl ViewWrapper for ContainerList {
+    cursive::wrap_impl!(self.inner: ScrollView<ListView>);
 }
 
 /// Update the TUI given a backend message
 fn handle_message(root: &mut Cursive, message: NamedUpdate) {
-    let mut container_list = root
+    let container_list = root
         .screen_mut()
         .get_mut(LayerPosition::FromFront(0))
-        .and_then(|v| v.downcast_mut::<ScrollView<ListView>>())
-        .unwrap()
-        .get_inner_mut();
-    let controls = get_list_child(&mut container_list, &message.container_name)
-        .and_then(|v| v.downcast_mut::<LinearLayout>())
+        .and_then(|v| v.downcast_mut::<ContainerList>())
+        .unwrap();
+    let controls = container_list
+        .get_container(&message.container_name)
         .unwrap();
     match message.inner {
         Update::State(state) => {
