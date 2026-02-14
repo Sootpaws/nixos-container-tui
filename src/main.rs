@@ -1,8 +1,7 @@
 use backend::messages::{ContainerState, NamedUpdate, Update};
 use cursive::Cursive;
-use cursive::views::LayerPosition;
 use tokio::task;
-use tui::ContainerList;
+use tui::Main;
 
 /// Backend for communicating with systemd over dbus
 mod backend;
@@ -17,7 +16,7 @@ async fn main() {
 
     // Create the TUI
     let mut root = cursive::default();
-    create_tui(&mut root, &containers);
+    Main::create(&mut root, &containers);
 
     // Run the Cursive event loop, which checking for and
     // handling backend messages
@@ -47,20 +46,9 @@ async fn main() {
     }
 }
 
-/// Create the TUI
-fn create_tui(root: &mut Cursive, containers: &Vec<String>) {
-    // Set up the main TUI
-    root.add_global_callback('q', |s| s.quit());
-    root.add_layer(ContainerList::new(containers));
-}
-
 /// Update the TUI given a backend message
 fn handle_message(root: &mut Cursive, message: NamedUpdate) {
-    let container_list = root
-        .screen_mut()
-        .get_mut(LayerPosition::FromFront(0))
-        .and_then(|v| v.downcast_mut::<ContainerList>())
-        .unwrap();
+    let container_list = Main::get_self(root).get_container_list();
     let controls = container_list
         .get_container(&message.container_name)
         .unwrap();
