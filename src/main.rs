@@ -48,7 +48,8 @@ async fn main() {
 
 /// Update the TUI given a backend message
 fn handle_message(root: &mut Cursive, message: NamedUpdate) {
-    let container_list = Main::get_self(root).get_container_list();
+    let main = Main::get_self(root);
+    let container_list = main.get_container_list();
     let controls = container_list
         .get_container(&message.container_name)
         .unwrap();
@@ -70,8 +71,7 @@ fn handle_message(root: &mut Cursive, message: NamedUpdate) {
             state_button.set_label(text);
             state_button.set_enabled(enabled);
         }
-        // TODO: Handle these
-        Update::Log(_) => (),
-        Update::Error(_) => (),
+        Update::Log(log) => main.get_debug_log().log(&message.container_name, &log),
+        Update::Error(error) => main.get_debug_log().error(&message.container_name, error),
     }
 }
