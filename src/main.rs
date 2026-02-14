@@ -2,7 +2,7 @@ use backend::messages::{ContainerState, NamedUpdate, Update};
 use cursive::Cursive;
 use cursive::views::LayerPosition;
 use tokio::task;
-use tui::container_list::ContainerList;
+use tui::ContainerList;
 
 /// Backend for communicating with systemd over dbus
 mod backend;

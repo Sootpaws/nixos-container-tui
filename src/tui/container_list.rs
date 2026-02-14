@@ -1,4 +1,4 @@
-use super::container_controls::ContainerControls;
+use super::ContainerControls;
 use super::utils;
 use cursive::view::ViewWrapper;
 use cursive::views::{ListView, ScrollView};
@@ -13,7 +13,7 @@ impl ContainerList {
     pub fn new(containers: &Vec<String>) -> Self {
         let mut list = ListView::new();
         for container in containers {
-            list.add_child(container,  ContainerControls::new());
+            list.add_child(container, ContainerControls::new());
         }
         Self {
             inner: ScrollView::new(list),
