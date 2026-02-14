@@ -1,11 +1,14 @@
 use backend::messages::{ContainerState, NamedUpdate, Update};
 use cursive::Cursive;
-use cursive::view::{View, ViewWrapper};
-use cursive::views::{Button, LayerPosition, LinearLayout, ListChild, ListView, ScrollView};
+use cursive::views::{Button, LayerPosition};
 use tokio::task;
+use tui::container_list::ContainerList;
 
 /// Backend for communicating with systemd over dbus
 mod backend;
+
+/// TUI creation and direct modification
+mod tui;
 
 #[tokio::main]
 async fn main() {
@@ -51,35 +54,6 @@ fn create_tui(root: &mut Cursive, containers: &Vec<String>) {
     root.add_layer(ContainerList::new(containers));
 }
 
-/// Wrapper for the main container list
-struct ContainerList {
-    inner: ScrollView<ListView>,
-}
-
-impl ContainerList {
-    /// Create a container list TUI from a list of container names
-    pub fn new(containers: &Vec<String>) -> Self {
-        let mut list = ListView::new();
-        for container in containers {
-            let controls = LinearLayout::horizontal().child(Button::new("[Unknown]", |_| {}));
-            list.add_child(container, controls);
-        }
-        Self {
-            inner: ScrollView::new(list),
-        }
-    }
-
-    /// Get the container view for a given name
-    pub fn get_container(&mut self, name: &str) -> Option<&mut LinearLayout> {
-        get_list_child(self.inner.get_inner_mut(), name)
-            .and_then(|v| v.downcast_mut::<LinearLayout>())
-    }
-}
-
-impl ViewWrapper for ContainerList {
-    cursive::wrap_impl!(self.inner: ScrollView<ListView>);
-}
-
 /// Update the TUI given a backend message
 fn handle_message(root: &mut Cursive, message: NamedUpdate) {
     let container_list = root
@@ -115,18 +89,4 @@ fn handle_message(root: &mut Cursive, message: NamedUpdate) {
         Update::Log(_) => (),
         Update::Error(_) => (),
     }
-}
-
-/// Get mutable access to a ListView item by label
-fn get_list_child<'a>(view: &'a mut ListView, label: &str) -> Option<&'a mut Box<dyn View>> {
-    view.children()
-        .iter()
-        .position(|child| match child {
-            ListChild::Row(child_label, _) => child_label == label,
-            _ => false,
-        })
-        .map(|index| match view.row_mut(index) {
-            ListChild::Row(_, view) => view,
-            _ => unreachable!(),
-        })
 }
