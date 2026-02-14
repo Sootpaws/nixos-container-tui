@@ -9,14 +9,13 @@ use zbus::Connection;
 
 /// Data structures for communicating with the backend
 pub mod messages;
-
 /// zbus/dbus proxies for communicating with systemd
 // TODO: Strip out all the unused parts
 #[allow(clippy::type_complexity)]
 mod proxies;
 
 /// Set up backend communication with systemd over dbus
-pub async fn start_backend() -> Result<Receiver> {
+pub async fn start_backend() -> Result<(Receiver, Vec<String>)> {
     // Connect to systemd over dbus
     let connection = Connection::system().await.unwrap();
     // Get list of containers to monitor
@@ -32,7 +31,7 @@ pub async fn start_backend() -> Result<Receiver> {
         ));
     }
     // Return backend message reciever
-    Ok(recv)
+    Ok((recv, containers))
 }
 
 /// Type of the reciever for messages from the backend

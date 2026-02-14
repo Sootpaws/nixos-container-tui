@@ -25,12 +25,12 @@ pub enum Update {
 pub enum ContainerState {
     Up,
     Down,
-    Failed,
     Starting,
     Stopping,
-    Maintenance,
     Reloading,
     Refreshing,
+    Failed,
+    Maintenance,
 }
 
 impl ContainerState {
