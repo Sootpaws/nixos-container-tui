@@ -2,6 +2,9 @@ use anyhow::{Context, Result, anyhow};
 use messages::{ContainerState, NamedUpdate, Update};
 use proxies::{ManagerProxy, UnitProxy};
 use std::fs;
+use std::process::Stdio;
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::process::Command;
 use tokio::sync::mpsc;
 use tokio::task;
 use tokio_stream::StreamExt;
@@ -24,11 +27,12 @@ pub async fn start_backend() -> Result<(Receiver, Vec<String>)> {
     let (send, recv) = mpsc::unbounded_channel();
     // Spawn tasks for monitoring each container
     for container in &containers {
-        task::spawn(monitor_container(
+        task::spawn(monitor_container_status(
             container.clone(),
             send.clone(),
             connection.clone(),
         ));
+        task::spawn(monitor_container_log(container.clone(), send.clone()));
     }
     // Return backend message reciever
     Ok((recv, containers))
@@ -53,7 +57,7 @@ macro_rules! log {
 }
 
 /// Monitor the status of a container
-async fn monitor_container(container: String, channel: Sender, connection: Connection) {
+async fn monitor_container_status(container: String, channel: Sender, connection: Connection) {
     // These will get moved into the inner closure
     let c = container.clone();
     let s = channel.clone();
@@ -89,7 +93,46 @@ async fn monitor_container(container: String, channel: Sender, connection: Conne
         Ok(())
     };
     // Actually invoke the setup closure, and report any errors
-    match inner().await.context("Failed to set up monitoring") {
+    match inner().await.context("Failed to set up status monitoring") {
+        Ok(()) => (),
+        Err(error) => channel
+            .send(NamedUpdate {
+                container_name: container,
+                inner: Update::Error(error),
+            })
+            .unwrap(),
+    }
+}
+
+/// Monitor logs from a container
+async fn monitor_container_log(container: String, channel: Sender) {
+    let c = container.clone();
+    let s = channel.clone();
+    let inner = async move || -> Result<()> {
+        log!(c, s, "Requesting logs");
+        let mut child = Command::new("journalctl")
+            .args(["--follow", "--unit", &format!("container@{c}.service")])
+            .kill_on_drop(true)
+            .stdout(Stdio::piped())
+            .spawn()
+            .context("Failed to spawn journalctl")?;
+        let mut reader = BufReader::new(child.stdout.take().unwrap()).lines();
+        tokio::spawn(async move { child.wait().await });
+        log!(c, s, "Reading logs");
+        while let Some(line) = reader
+            .next_line()
+            .await
+            .context("Failed to read log line")?
+        {
+            s.send(NamedUpdate {
+                container_name: c.clone(),
+                inner: Update::ContainerLog(line),
+            })
+            .unwrap();
+        }
+        Ok(())
+    };
+    match inner().await.context("Failed to set up log monitoring") {
         Ok(()) => (),
         Err(error) => channel
             .send(NamedUpdate {

@@ -71,6 +71,7 @@ fn handle_message(root: &mut Cursive, message: NamedUpdate) {
             state_button.set_label(text);
             state_button.set_enabled(enabled);
         }
+        Update::ContainerLog(log) => main.get_container_log().log(&message.container_name, log),
         Update::Log(log) => main.get_debug_log().log(&message.container_name, &log),
         Update::Error(error) => main.get_debug_log().error(&message.container_name, error),
     }
