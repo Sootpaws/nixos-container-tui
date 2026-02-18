@@ -1,5 +1,8 @@
 use cursive::view::{Nameable, ViewWrapper};
-use cursive::views::{LinearLayout, Panel, StackView, TextView};
+use cursive::views::stack_view::{Fullscreen, NoShadow};
+use cursive::views::{
+    HideableView, LayerPosition, LinearLayout, NamedView, Panel, StackView, TextView,
+};
 
 pub struct ContainerLog {
     inner: StackView,
@@ -9,11 +12,14 @@ impl ContainerLog {
     pub fn new(containers: &Vec<String>) -> Self {
         let mut inner = StackView::new();
         for container in containers {
-            inner.add_layer(
-                Panel::new(LinearLayout::vertical())
-                    .title(format!("Logs - {container}"))
-                    .with_name(container),
-            );
+            inner.add_layer(Fullscreen(NoShadow(
+                HideableView::new(
+                    Panel::new(LinearLayout::vertical())
+                        .title(format!("Logs - {container}"))
+                        .with_name(container),
+                )
+                .hidden(),
+            )));
         }
         let mut out = Self { inner };
         out.show(&containers[0]);
@@ -22,17 +28,21 @@ impl ContainerLog {
 
     pub fn log(&mut self, container: &str, log: String) {
         let layer = self.inner.find_layer_from_name(container).unwrap();
-        self.inner
-            .get_mut(layer)
-            .unwrap()
-            .downcast_mut::<LinearLayout>()
-            .unwrap()
+        self.get(layer)
+            .get_inner_mut()
+            .get_mut()
+            .get_inner_mut()
             .add_child(TextView::new(log));
     }
 
     pub fn show(&mut self, container: &str) {
+        self.get(LayerPosition::FromFront(0)).hide();
         let layer = self.inner.find_layer_from_name(container).unwrap();
-        self.inner.move_to_front(layer);
+        self.get(layer).unhide();
+    }
+
+    fn get(&mut self, pos: LayerPosition) -> &mut HideableView<NamedView<Panel<LinearLayout>>> {
+        self.inner.get_mut(pos).unwrap().downcast_mut().unwrap()
     }
 }
 
