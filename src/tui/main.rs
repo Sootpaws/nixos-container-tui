@@ -1,4 +1,4 @@
-use super::{ContainerList, DebugLog};
+use super::{ContainerList, ContainerLog, DebugLog};
 use cursive::Cursive;
 use cursive::view::ViewWrapper;
 use cursive::views::{LayerPosition, LinearLayout};
@@ -38,13 +38,22 @@ impl Main {
             .unwrap()
     }
 
+    pub fn get_container_log(&mut self) -> &mut ContainerLog {
+        self.inner
+            .get_child_mut(2)
+            .and_then(|v| v.downcast_mut::<ContainerLog>())
+            .unwrap()
+    }
+
     /// Create the TUI with a given list of containers
     fn new(containers: &Vec<String>) -> Self {
         let debug_log = DebugLog::new();
         let container_list = ContainerList::new(containers);
+        let container_log = ContainerLog::new(containers);
         let inner = LinearLayout::horizontal()
             .child(debug_log)
-            .child(container_list);
+            .child(container_list)
+            .child(container_log);
         Self { inner }
     }
 }

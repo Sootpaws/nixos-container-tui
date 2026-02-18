@@ -1,5 +1,5 @@
-use super::ContainerControls;
 use super::utils;
+use super::{ContainerControls, Main};
 use cursive::view::ViewWrapper;
 use cursive::views::{ListView, Panel, ScrollView};
 
@@ -11,7 +11,10 @@ pub struct ContainerList {
 impl ContainerList {
     /// Create a container list TUI from a list of container names
     pub fn new(containers: &Vec<String>) -> Self {
-        let mut list = ListView::new();
+        let mut list = ListView::new().on_select(|root, container| {
+            let main = Main::get_self(root);
+            main.get_container_log().show(container);
+        });
         for container in containers {
             list.add_child(container, ContainerControls::new());
         }
