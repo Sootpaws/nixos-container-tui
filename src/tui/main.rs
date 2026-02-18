@@ -23,28 +23,28 @@ impl Main {
             .unwrap()
     }
 
-    /// Get the container list
-    pub fn get_container_list(&mut self) -> &mut ContainerList {
+    pub fn get_debug_log(&mut self) -> &mut DebugLog {
         self.inner
             .get_child_mut(0)
-            .and_then(|v| v.downcast_mut::<ContainerList>())
+            .and_then(|v| v.downcast_mut::<DebugLog>())
             .unwrap()
     }
 
-    pub fn get_debug_log(&mut self) -> &mut DebugLog {
+    /// Get the container list
+    pub fn get_container_list(&mut self) -> &mut ContainerList {
         self.inner
             .get_child_mut(1)
-            .and_then(|v| v.downcast_mut::<DebugLog>())
+            .and_then(|v| v.downcast_mut::<ContainerList>())
             .unwrap()
     }
 
     /// Create the TUI with a given list of containers
     fn new(containers: &Vec<String>) -> Self {
-        let container_list = ContainerList::new(containers);
         let debug_log = DebugLog::new();
+        let container_list = ContainerList::new(containers);
         let inner = LinearLayout::horizontal()
-            .child(container_list)
-            .child(debug_log);
+            .child(debug_log)
+            .child(container_list);
         Self { inner }
     }
 }
