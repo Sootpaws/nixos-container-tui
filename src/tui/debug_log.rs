@@ -1,15 +1,15 @@
 use anyhow::Error;
 use cursive::view::ViewWrapper;
-use cursive::views::{LinearLayout, TextView};
+use cursive::views::{LinearLayout, Panel, TextView};
 
 pub struct DebugLog {
-    inner: LinearLayout,
+    inner: Panel<LinearLayout>,
 }
 
 impl DebugLog {
     pub fn new() -> Self {
         Self {
-            inner: LinearLayout::vertical(),
+            inner: Panel::new(LinearLayout::vertical()).title("Internal Logs"),
         }
     }
 
@@ -22,10 +22,10 @@ impl DebugLog {
     }
 
     fn add(&mut self, line: String) {
-        self.inner.add_child(TextView::new(line));
+        self.inner.get_inner_mut().add_child(TextView::new(line));
     }
 }
 
 impl ViewWrapper for DebugLog {
-    cursive::wrap_impl!(self.inner: LinearLayout);
+    cursive::wrap_impl!(self.inner: Panel<LinearLayout>);
 }
