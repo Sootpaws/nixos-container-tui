@@ -111,7 +111,12 @@ async fn monitor_container_log(container: String, channel: Sender) {
     let inner = async move || -> Result<()> {
         log!(c, s, "Requesting logs");
         let mut child = Command::new("journalctl")
-            .args(["--follow", "--unit", &format!("container@{c}.service")])
+            .args([
+                "--no-hostname",
+                "--follow",
+                "--unit",
+                &format!("container@{c}.service"),
+            ])
             .kill_on_drop(true)
             .stdout(Stdio::piped())
             .spawn()
