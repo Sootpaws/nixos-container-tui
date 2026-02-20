@@ -20,7 +20,9 @@ mod proxies;
 /// Set up backend communication with systemd over dbus
 pub async fn start_backend() -> Result<(Receiver, Vec<String>)> {
     // Connect to systemd over dbus
-    let connection = Connection::system().await.unwrap();
+    let connection = Connection::system()
+        .await
+        .context("Could not connect to DBus")?;
     // Get list of containers to monitor
     let containers = get_containers()?;
     // Create channel for recieving updates from monitors
@@ -88,7 +90,7 @@ async fn monitor_container_status(container: String, channel: Sender, connection
                 container_name: c.clone(),
                 inner: Update::State(state),
             })
-            .unwrap();
+            .expect("Channel should always be open");
         }
         Ok(())
     };
@@ -100,7 +102,7 @@ async fn monitor_container_status(container: String, channel: Sender, connection
                 container_name: container,
                 inner: Update::Error(error),
             })
-            .unwrap(),
+            .expect("Channel should always be open"),
     }
 }
 
@@ -121,7 +123,8 @@ async fn monitor_container_log(container: String, channel: Sender) {
             .stdout(Stdio::piped())
             .spawn()
             .context("Failed to spawn journalctl")?;
-        let mut reader = BufReader::new(child.stdout.take().unwrap()).lines();
+        let mut reader =
+            BufReader::new(child.stdout.take().expect("Child stdio should be present")).lines();
         tokio::spawn(async move { child.wait().await });
         log!(c, s, "Reading logs");
         while let Some(line) = reader
@@ -133,7 +136,7 @@ async fn monitor_container_log(container: String, channel: Sender) {
                 container_name: c.clone(),
                 inner: Update::ContainerLog(line),
             })
-            .unwrap();
+            .expect("Channel should always be open");
         }
         Ok(())
     };
@@ -144,7 +147,7 @@ async fn monitor_container_log(container: String, channel: Sender) {
                 container_name: container,
                 inner: Update::Error(error),
             })
-            .unwrap(),
+            .expect("Channel should always be open"),
     }
 }
 

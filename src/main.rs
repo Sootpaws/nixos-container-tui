@@ -50,9 +50,7 @@ async fn main() {
 fn handle_message(root: &mut Cursive, message: NamedUpdate) {
     let main = Main::get_self(root);
     let container_list = main.get_container_list();
-    let controls = container_list
-        .get_container(&message.container_name)
-        .unwrap();
+    let controls = container_list.get_container(&message.container_name);
     match message.inner {
         Update::State(state) => {
             // Get updated settings for state button

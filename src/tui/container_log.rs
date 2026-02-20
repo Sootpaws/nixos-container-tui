@@ -27,7 +27,10 @@ impl ContainerLog {
     }
 
     pub fn log(&mut self, container: &str, log: String) {
-        let layer = self.inner.find_layer_from_name(container).unwrap();
+        let layer = self
+            .inner
+            .find_layer_from_name(container)
+            .expect("Container name should be valid");
         let mut inner = self.get(layer).get_inner_mut().get_mut();
         let scroll = inner.get_inner_mut();
         let follow = scroll.is_at_bottom();
@@ -39,7 +42,10 @@ impl ContainerLog {
 
     pub fn show(&mut self, container: &str) {
         self.get(LayerPosition::FromFront(0)).hide();
-        let layer = self.inner.find_layer_from_name(container).unwrap();
+        let layer = self
+            .inner
+            .find_layer_from_name(container)
+            .expect("Container name should be valid");
         self.get(layer).unhide();
     }
 
@@ -47,7 +53,11 @@ impl ContainerLog {
         &mut self,
         pos: LayerPosition,
     ) -> &mut HideableView<NamedView<Panel<ScrollView<LinearLayout>>>> {
-        self.inner.get_mut(pos).unwrap().downcast_mut().unwrap()
+        self.inner
+            .get_mut(pos)
+            .expect("Passed possition should be valid")
+            .downcast_mut()
+            .expect("Child view should be expected type")
     }
 }
 

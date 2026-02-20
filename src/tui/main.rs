@@ -19,30 +19,34 @@ impl Main {
     pub fn get_self(root: &mut Cursive) -> &mut Self {
         root.screen_mut()
             .get_mut(LayerPosition::FromFront(0))
-            .and_then(|v| v.downcast_mut::<Self>())
-            .unwrap()
+            .expect("Main view should be present")
+            .downcast_mut::<Self>()
+            .expect("Main view should be expected type")
     }
 
     pub fn get_debug_log(&mut self) -> &mut DebugLog {
         self.inner
             .get_child_mut(0)
-            .and_then(|v| v.downcast_mut::<DebugLog>())
-            .unwrap()
+            .expect("Debug log view should be present")
+            .downcast_mut::<DebugLog>()
+            .expect("Debug log view should be expected type")
     }
 
     /// Get the container list
     pub fn get_container_list(&mut self) -> &mut ContainerList {
         self.inner
             .get_child_mut(1)
-            .and_then(|v| v.downcast_mut::<ContainerList>())
-            .unwrap()
+            .expect("Container list view should be present")
+            .downcast_mut::<ContainerList>()
+            .expect("Container list view should be expected type")
     }
 
     pub fn get_container_log(&mut self) -> &mut ContainerLog {
         self.inner
             .get_child_mut(2)
-            .and_then(|v| v.downcast_mut::<ContainerLog>())
-            .unwrap()
+            .expect("Container log view should be present")
+            .downcast_mut::<ContainerLog>()
+            .expect("Container log view should be expected type")
     }
 
     /// Create the TUI with a given list of containers

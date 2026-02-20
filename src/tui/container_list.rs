@@ -24,9 +24,11 @@ impl ContainerList {
     }
 
     /// Get the container view for a given name
-    pub fn get_container(&mut self, name: &str) -> Option<&mut ContainerControls> {
+    pub fn get_container(&mut self, name: &str) -> &mut ContainerControls {
         utils::get_list_child(self.inner.get_inner_mut().get_inner_mut(), name)
-            .and_then(|v| v.downcast_mut::<ContainerControls>())
+            .expect("Container name should be valid")
+            .downcast_mut()
+            .expect("Container view be of expected type")
     }
 }
 

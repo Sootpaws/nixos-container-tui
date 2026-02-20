@@ -18,8 +18,9 @@ impl ContainerControls {
     pub fn get_state_button(&mut self) -> &mut Button {
         self.inner
             .get_child_mut(0)
-            .and_then(|v| v.downcast_mut::<Button>())
-            .unwrap()
+            .expect("Container state button should be present")
+            .downcast_mut::<Button>()
+            .expect("Container state button should be expected type")
     }
 }
 
