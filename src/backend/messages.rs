@@ -4,7 +4,7 @@ use anyhow::{Error, Result, anyhow};
 #[derive(Debug)]
 pub struct NamedUpdate {
     /// The name of the associated container
-    pub container_name: String,
+    pub container_name: &'static str,
     /// The update from that container
     pub inner: Update,
 }

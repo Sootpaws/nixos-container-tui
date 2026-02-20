@@ -23,7 +23,7 @@ mod proxies;
 mod utils;
 
 /// Set up backend communication with systemd over dbus
-pub async fn start_backend() -> Result<(Receiver, Vec<String>)> {
+pub async fn start_backend() -> Result<(Receiver, Vec<&'static str>)> {
     // Connect to systemd over dbus
     let connection = Connection::system()
         .await
@@ -35,11 +35,11 @@ pub async fn start_backend() -> Result<(Receiver, Vec<String>)> {
     // Spawn tasks for monitoring each container
     for container in &containers {
         task::spawn(monitor_container_status(
-            container.clone(),
+            container,
             send.clone(),
             connection.clone(),
         ));
-        task::spawn(monitor_container_log(container.clone(), send.clone()));
+        task::spawn(monitor_container_log(container, send.clone()));
     }
     // Return backend message reciever
     Ok((recv, containers))
@@ -54,7 +54,7 @@ type Sender = mpsc::UnboundedSender<NamedUpdate>;
 utils::report_async! {
     /// Monitor the status of a container
     monitor_container_status[c, s](connection: Connection) {
-        let service_name = utils::service_name(&c);
+        let service_name = utils::service_name(c);
         // Connect to systemd over dbus
         log!(c, s, "Connecting to systemd");
         let manager = ManagerProxy::new(&connection)
@@ -75,7 +75,7 @@ utils::report_async! {
                 &state.get().await.context("Failed to get updated state")?,
             )?;
             s.send(NamedUpdate {
-                container_name: c.clone(),
+                container_name: c,
                 inner: Update::State(state),
             })
             .expect("Channel should always be open");
@@ -94,7 +94,7 @@ utils::report_async! {
                 "--no-hostname",
                 "--follow",
                 "--unit",
-                &utils::service_name(&c),
+                &utils::service_name(c),
             ])
             .kill_on_drop(true)
             .stdout(Stdio::piped())
@@ -110,7 +110,7 @@ utils::report_async! {
             .context("Failed to read log line")?
         {
             s.send(NamedUpdate {
-                container_name: c.clone(),
+                container_name: c,
                 inner: Update::ContainerLog(line),
             })
             .expect("Channel should always be open");
@@ -121,7 +121,9 @@ utils::report_async! {
 }
 
 /// Get the list of container names
-fn get_containers() -> Result<Vec<String>> {
+///
+/// This leaks the container name strings to make cheap, copyable identifiers
+fn get_containers() -> Result<Vec<&'static str>> {
     let mut configs = fs::read_dir("/etc/nixos-containers")
         .context("Failed to list container configs")?
         .map(|entry| {
@@ -136,10 +138,10 @@ fn get_containers() -> Result<Vec<String>> {
                     )
                 })?
                 .rsplit_once('.')
-                .map(|(name, _)| name.to_string())
+                .map(|(name, _)| name.to_string().leak() as &'static str)
                 .ok_or(anyhow!("Container config name is not of expected form"))
         })
-        .collect::<Result<Vec<String>>>()?;
+        .collect::<Result<Vec<_>>>()?;
     configs.sort();
     Ok(configs)
 }

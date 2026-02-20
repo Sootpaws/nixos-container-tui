@@ -10,7 +10,7 @@ pub struct Main {
 
 impl Main {
     /// Create the TUI
-    pub fn create(root: &mut Cursive, containers: &Vec<String>) {
+    pub fn create(root: &mut Cursive, containers: &Vec<&'static str>) {
         root.add_global_callback('q', |s| s.quit());
         root.add_layer(Self::new(containers));
     }
@@ -50,7 +50,7 @@ impl Main {
     }
 
     /// Create the TUI with a given list of containers
-    fn new(containers: &Vec<String>) -> Self {
+    fn new(containers: &Vec<&'static str>) -> Self {
         let debug_log = DebugLog::new();
         let container_list = ContainerList::new(containers);
         let container_log = ContainerLog::new(containers);

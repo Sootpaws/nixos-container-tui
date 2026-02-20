@@ -17,17 +17,17 @@ macro_rules! report_async {
     ) => {
         $( #[ $meta ] )*
         async fn $name (
-            container: String,
+            container: &'static str,
             channel: Sender,
             $( $arg_name : $ty , )*
         ) {
             let inner = async |
-                $container : String,
+                $container : &'static str,
                 $channel : Sender,
                 $( $arg_name : $ty , )*
             | -> Result<()> { $body };
             match inner(
-                container.clone(),
+                container,
                 channel.clone(),
                 $( $arg_name , )*
             ).await.context( $context ) {
@@ -49,7 +49,7 @@ macro_rules! log {
     ($name:expr, $sender:expr, $message:expr) => {
         $sender
             .send(NamedUpdate {
-                container_name: $name.clone(),
+                container_name: $name,
                 inner: Update::Log(format!($message)),
             })
             .unwrap()

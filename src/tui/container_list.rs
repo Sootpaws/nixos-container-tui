@@ -10,13 +10,13 @@ pub struct ContainerList {
 
 impl ContainerList {
     /// Create a container list TUI from a list of container names
-    pub fn new(containers: &Vec<String>) -> Self {
+    pub fn new(containers: &Vec<&'static str>) -> Self {
         let mut list = ListView::new().on_select(|root, container| {
             let main = Main::get_self(root);
             main.get_container_log().show(container);
         });
         for container in containers {
-            list.add_child(container, ContainerControls::new());
+            list.add_child(*container, ContainerControls::new());
         }
         Self {
             inner: Panel::new(ScrollView::new(list)).title("Containers"),

@@ -10,14 +10,14 @@ pub struct ContainerLog {
 }
 
 impl ContainerLog {
-    pub fn new(containers: &Vec<String>) -> Self {
+    pub fn new(containers: &Vec<&'static str>) -> Self {
         let mut inner = StackView::new();
         for container in containers {
             inner.add_layer(Fullscreen(NoShadow(
                 HideableView::new(
                     Panel::new(ScrollView::new(LinearLayout::vertical()))
                         .title(format!("Logs - {container}"))
-                        .with_name(container),
+                        .with_name(*container),
                 )
                 .hidden(),
             )));
@@ -25,7 +25,7 @@ impl ContainerLog {
         let mut out = Self {
             inner: FocusTracker::new(inner),
         };
-        out.show(&containers[0]);
+        out.show(containers[0]);
         out
     }
 

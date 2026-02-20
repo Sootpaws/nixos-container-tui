@@ -50,7 +50,7 @@ async fn main() {
 fn handle_message(root: &mut Cursive, message: NamedUpdate) {
     let main = Main::get_self(root);
     let container_list = main.get_container_list();
-    let controls = container_list.get_container(&message.container_name);
+    let controls = container_list.get_container(message.container_name);
     match message.inner {
         Update::State(state) => {
             // Get updated settings for state button
@@ -69,8 +69,8 @@ fn handle_message(root: &mut Cursive, message: NamedUpdate) {
             state_button.set_label(text);
             state_button.set_enabled(enabled);
         }
-        Update::ContainerLog(log) => main.get_container_log().log(&message.container_name, log),
-        Update::Log(log) => main.get_debug_log().log(&message.container_name, &log),
-        Update::Error(error) => main.get_debug_log().error(&message.container_name, error),
+        Update::ContainerLog(log) => main.get_container_log().log(message.container_name, log),
+        Update::Log(log) => main.get_debug_log().log(message.container_name, &log),
+        Update::Error(error) => main.get_debug_log().error(message.container_name, error),
     }
 }
