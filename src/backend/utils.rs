@@ -9,14 +9,14 @@ pub fn service_name(container: &str) -> String {
 /// Helper for running a fallable async function and reporting returned errors
 #[macro_export]
 macro_rules! report_async {
-    ( $( #[ $meta:meta ] )* $name:ident
+    ( $( #[ $meta:meta ] )* $vis:vis $name:ident
         [ $container:ident , $channel:ident ]
         ( $( $arg_name:ident : $ty:ty ),* )
         $body:block
         $context:literal
     ) => {
         $( #[ $meta ] )*
-        async fn $name (
+        $vis async fn $name (
             container: &'static str,
             channel: Sender,
             $( $arg_name : $ty , )*
