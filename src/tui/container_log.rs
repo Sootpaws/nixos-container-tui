@@ -1,11 +1,12 @@
 use cursive::view::{Nameable, ViewWrapper};
 use cursive::views::stack_view::{Fullscreen, NoShadow};
 use cursive::views::{
-    HideableView, LayerPosition, LinearLayout, NamedView, Panel, ScrollView, StackView, TextView,
+    FocusTracker, HideableView, LayerPosition, LinearLayout, NamedView, Panel, ScrollView,
+    StackView, TextView,
 };
 
 pub struct ContainerLog {
-    inner: StackView,
+    inner: FocusTracker<StackView>,
 }
 
 impl ContainerLog {
@@ -21,16 +22,15 @@ impl ContainerLog {
                 .hidden(),
             )));
         }
-        let mut out = Self { inner };
+        let mut out = Self {
+            inner: FocusTracker::new(inner),
+        };
         out.show(&containers[0]);
         out
     }
 
     pub fn log(&mut self, container: &str, log: String) {
-        let layer = self
-            .inner
-            .find_layer_from_name(container)
-            .expect("Container name should be valid");
+        let layer = self.get_by_name(container);
         let mut inner = self.get(layer).get_inner_mut().get_mut();
         let scroll = inner.get_inner_mut();
         let follow = scroll.is_at_bottom();
@@ -42,11 +42,16 @@ impl ContainerLog {
 
     pub fn show(&mut self, container: &str) {
         self.get(LayerPosition::FromFront(0)).hide();
-        let layer = self
-            .inner
-            .find_layer_from_name(container)
-            .expect("Container name should be valid");
+        let layer = self.get_by_name(container);
         self.get(layer).unhide();
+        self.inner.get_inner_mut().move_to_front(layer);
+    }
+
+    fn get_by_name(&mut self, container: &str) -> LayerPosition {
+        self.inner
+            .get_inner_mut()
+            .find_layer_from_name(container)
+            .expect("Container name should be valid")
     }
 
     fn get(
@@ -54,6 +59,7 @@ impl ContainerLog {
         pos: LayerPosition,
     ) -> &mut HideableView<NamedView<Panel<ScrollView<LinearLayout>>>> {
         self.inner
+            .get_inner_mut()
             .get_mut(pos)
             .expect("Passed possition should be valid")
             .downcast_mut()
@@ -62,5 +68,5 @@ impl ContainerLog {
 }
 
 impl ViewWrapper for ContainerLog {
-    cursive::wrap_impl!(self.inner: StackView);
+    cursive::wrap_impl!(self.inner: FocusTracker<StackView>);
 }
