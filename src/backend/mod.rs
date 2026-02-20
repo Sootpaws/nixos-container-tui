@@ -23,7 +23,7 @@ mod proxies;
 mod utils;
 
 /// Set up backend communication with systemd over dbus
-pub async fn start_backend() -> Result<(Receiver, Vec<&'static str>)> {
+pub async fn start_backend() -> Result<(Receiver, Vec<&'static str>, Sender)> {
     // Connect to systemd over dbus
     let connection = Connection::system()
         .await
@@ -42,14 +42,54 @@ pub async fn start_backend() -> Result<(Receiver, Vec<&'static str>)> {
         task::spawn(monitor_container_log(container, send.clone()));
     }
     // Return backend message reciever
-    Ok((recv, containers))
+    Ok((recv, containers, send))
+}
+
+utils::report_async! {
+    /// Start a container
+    pub start_container[c, s]() {
+        let service_name = utils::service_name(c);
+        let connection = Connection::system()
+            .await
+            .context("Could not connect to DBus")?;
+        let manager = ManagerProxy::new(&connection)
+            .await
+            .context("Failed to connect to systemd manager")?;
+        log!(c, s, "Issuing start command");
+        manager.start_unit(&service_name, "replace")
+            .await
+            .context("Failed to start container service")?;
+        log!(c, s, "Starting");
+        Ok(())
+    }
+    "Failed to start container"
+}
+
+utils::report_async! {
+    /// Stop a container
+    pub stop_container[c, s]() {
+        let service_name = utils::service_name(c);
+        let connection = Connection::system()
+            .await
+            .context("Could not connect to DBus")?;
+        let manager = ManagerProxy::new(&connection)
+            .await
+            .context("Failed to connect to systemd manager")?;
+        log!(c, s, "Issuing stop command");
+        manager.stop_unit(&service_name, "replace")
+            .await
+            .context("Failed to stop container service")?;
+        log!(c, s, "Stopping");
+        Ok(())
+    }
+    "Failed to stop container"
 }
 
 /// Type of the reciever for messages from the backend
 pub type Receiver = mpsc::UnboundedReceiver<NamedUpdate>;
 
 /// Type of senders for transmitting messages out of the backend
-type Sender = mpsc::UnboundedSender<NamedUpdate>;
+pub type Sender = mpsc::UnboundedSender<NamedUpdate>;
 
 utils::report_async! {
     /// Monitor the status of a container

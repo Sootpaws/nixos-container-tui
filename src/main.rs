@@ -12,10 +12,11 @@ mod tui;
 #[tokio::main]
 async fn main() {
     // Start the backend
-    let (mut recv, containers) = backend::start_backend().await.unwrap();
+    let (mut recv, containers, send) = backend::start_backend().await.unwrap();
 
     // Create the TUI
     let mut root = cursive::default();
+    root.set_user_data(send);
     Main::create(&mut root, &containers);
 
     // Run the Cursive event loop, which checking for and
@@ -54,23 +55,44 @@ fn handle_message(root: &mut Cursive, message: NamedUpdate) {
     match message.inner {
         Update::State(state) => {
             // Get updated settings for state button
-            let (text, enabled) = match state {
-                ContainerState::Up => ("UP", true),
-                ContainerState::Down => ("DOWN", true),
-                ContainerState::Starting => ("STARTING", false),
-                ContainerState::Stopping => ("STOPPING", false),
-                ContainerState::Reloading => ("RELOADING", false),
-                ContainerState::Refreshing => ("REFRESHING", false),
-                ContainerState::Failed => ("FAILED", true),
-                ContainerState::Maintenance => ("MAINTENANCE", true),
+            let (text, enabled, action): (_, _, &(dyn Fn(&mut _, _) + Sync)) = match state {
+                ContainerState::Up => ("UP", true, &stop_container),
+                ContainerState::Down => ("DOWN", true, &start_container),
+                ContainerState::Starting => ("STARTING", false, &|_, _| {}),
+                ContainerState::Stopping => ("STOPPING", false, &|_, _| {}),
+                ContainerState::Reloading => ("RELOADING", false, &|_, _| {}),
+                ContainerState::Refreshing => ("REFRESHING", false, &|_, _| {}),
+                ContainerState::Failed => ("FAILED", true, &start_container),
+                ContainerState::Maintenance => ("MAINTENANCE", true, &|_, _| {}),
             };
             // Update button
             let state_button = controls.get_state_button();
             state_button.set_label(text);
             state_button.set_enabled(enabled);
+            state_button.set_callback(move |root| action(root, message.container_name));
         }
         Update::ContainerLog(log) => main.get_container_log().log(message.container_name, log),
         Update::Log(log) => main.get_debug_log().log(message.container_name, &log),
         Update::Error(error) => main.get_debug_log().error(message.container_name, error),
     }
+}
+
+fn start_container(root: &mut Cursive, container_name: &'static str) {
+    task::spawn(backend::start_container(
+        container_name,
+        get_backend_channel(root),
+    ));
+}
+
+fn stop_container(root: &mut Cursive, container_name: &'static str) {
+    task::spawn(backend::stop_container(
+        container_name,
+        get_backend_channel(root),
+    ));
+}
+
+fn get_backend_channel(root: &mut Cursive) -> backend::Sender {
+    root.user_data::<backend::Sender>()
+        .expect("Backend channel should be in user data")
+        .clone()
 }
