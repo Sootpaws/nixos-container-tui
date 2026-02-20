@@ -8,14 +8,19 @@ use tokio::process::Command;
 use tokio::sync::mpsc;
 use tokio::task;
 use tokio_stream::StreamExt;
+use utils::log;
 use zbus::Connection;
 
 /// Data structures for communicating with the backend
 pub mod messages;
+
 /// zbus/dbus proxies for communicating with systemd
 // TODO: Strip out all the unused parts
 #[allow(clippy::type_complexity)]
 mod proxies;
+
+/// Backend helper macros
+mod utils;
 
 /// Set up backend communication with systemd over dbus
 pub async fn start_backend() -> Result<(Receiver, Vec<String>)> {
@@ -46,58 +51,10 @@ pub type Receiver = mpsc::UnboundedReceiver<NamedUpdate>;
 /// Type of senders for transmitting messages out of the backend
 type Sender = mpsc::UnboundedSender<NamedUpdate>;
 
-/// Helper for running a fallable async function and reporting returned errors
-macro_rules! report_async {
-    ( $( #[ $meta:meta ] )* $name:ident
-        [ $container:ident , $channel:ident ]
-        ( $( $arg_name:ident : $ty:ty ),* )
-        $body:block
-        $context:literal
-    ) => {
-        $( #[ $meta ] )*
-        async fn $name (
-            container: String,
-            channel: Sender,
-            $( $arg_name : $ty , )*
-        ) {
-            let inner = async |
-                $container : String,
-                $channel : Sender,
-                $( $arg_name : $ty , )*
-            | -> Result<()> { $body };
-            match inner(
-                container.clone(),
-                channel.clone(),
-                $( $arg_name , )*
-            ).await.context( $context ) {
-                Ok(()) => (),
-                Err(error) => channel
-                    .send(NamedUpdate {
-                        container_name: container,
-                        inner: Update::Error(error),
-                    })
-                    .expect("Channel should always be open"),
-            }
-        }
-    }
-}
-
-/// Helper for reporting log messages from container monitors
-macro_rules! log {
-    ($name:expr, $sender:expr, $message:expr) => {
-        $sender
-            .send(NamedUpdate {
-                container_name: $name.clone(),
-                inner: Update::Log(format!($message)),
-            })
-            .unwrap()
-    };
-}
-
-report_async! {
+utils::report_async! {
     /// Monitor the status of a container
     monitor_container_status[c, s](connection: Connection) {
-        let service_name = format!("container@{c}.service");
+        let service_name = utils::service_name(&c);
         // Connect to systemd over dbus
         log!(c, s, "Connecting to systemd");
         let manager = ManagerProxy::new(&connection)
@@ -128,7 +85,7 @@ report_async! {
     "Failed to set up status monitoring"
 }
 
-report_async! {
+utils::report_async! {
     /// Monitor logs from a container
     monitor_container_log[c, s]() {
         log!(c, s, "Requesting logs");
@@ -137,7 +94,7 @@ report_async! {
                 "--no-hostname",
                 "--follow",
                 "--unit",
-                &format!("container@{c}.service"),
+                &utils::service_name(&c),
             ])
             .kill_on_drop(true)
             .stdout(Stdio::piped())
