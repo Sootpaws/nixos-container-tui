@@ -46,6 +46,42 @@ pub type Receiver = mpsc::UnboundedReceiver<NamedUpdate>;
 /// Type of senders for transmitting messages out of the backend
 type Sender = mpsc::UnboundedSender<NamedUpdate>;
 
+/// Helper for running a fallable async function and reporting returned errors
+macro_rules! report_async {
+    ( $( #[ $meta:meta ] )* $name:ident
+        [ $container:ident , $channel:ident ]
+        ( $( $arg_name:ident : $ty:ty ),* )
+        $body:block
+        $context:literal
+    ) => {
+        $( #[ $meta ] )*
+        async fn $name (
+            container: String,
+            channel: Sender,
+            $( $arg_name : $ty , )*
+        ) {
+            let inner = async |
+                $container : String,
+                $channel : Sender,
+                $( $arg_name : $ty , )*
+            | -> Result<()> { $body };
+            match inner(
+                container.clone(),
+                channel.clone(),
+                $( $arg_name , )*
+            ).await.context( $context ) {
+                Ok(()) => (),
+                Err(error) => channel
+                    .send(NamedUpdate {
+                        container_name: container,
+                        inner: Update::Error(error),
+                    })
+                    .expect("Channel should always be open"),
+            }
+        }
+    }
+}
+
 /// Helper for reporting log messages from container monitors
 macro_rules! log {
     ($name:expr, $sender:expr, $message:expr) => {
@@ -58,14 +94,9 @@ macro_rules! log {
     };
 }
 
-/// Monitor the status of a container
-async fn monitor_container_status(container: String, channel: Sender, connection: Connection) {
-    // These will get moved into the inner closure
-    let c = container.clone();
-    let s = channel.clone();
-    // We use an inner async closure here to catch and handle ?-propagated
-    // errors during the setup process
-    let inner = async move || -> Result<()> {
+report_async! {
+    /// Monitor the status of a container
+    monitor_container_status[c, s](connection: Connection) {
         let service_name = format!("container@{c}.service");
         // Connect to systemd over dbus
         log!(c, s, "Connecting to systemd");
@@ -93,24 +124,13 @@ async fn monitor_container_status(container: String, channel: Sender, connection
             .expect("Channel should always be open");
         }
         Ok(())
-    };
-    // Actually invoke the setup closure, and report any errors
-    match inner().await.context("Failed to set up status monitoring") {
-        Ok(()) => (),
-        Err(error) => channel
-            .send(NamedUpdate {
-                container_name: container,
-                inner: Update::Error(error),
-            })
-            .expect("Channel should always be open"),
     }
+    "Failed to set up status monitoring"
 }
 
-/// Monitor logs from a container
-async fn monitor_container_log(container: String, channel: Sender) {
-    let c = container.clone();
-    let s = channel.clone();
-    let inner = async move || -> Result<()> {
+report_async! {
+    /// Monitor logs from a container
+    monitor_container_log[c, s]() {
         log!(c, s, "Requesting logs");
         let mut child = Command::new("journalctl")
             .args([
@@ -139,16 +159,8 @@ async fn monitor_container_log(container: String, channel: Sender) {
             .expect("Channel should always be open");
         }
         Ok(())
-    };
-    match inner().await.context("Failed to set up log monitoring") {
-        Ok(()) => (),
-        Err(error) => channel
-            .send(NamedUpdate {
-                container_name: container,
-                inner: Update::Error(error),
-            })
-            .expect("Channel should always be open"),
     }
+    "Failed to set up log monitoring"
 }
 
 /// Get the list of container names
